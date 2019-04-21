@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <title>UBC Query</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <script src="https://unpkg.com/react@15/dist/react.js"></script>
+        <script src="https://unpkg.com/react-dom@15/dist/react-dom.js"></script>
+        <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+        <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+        <style id="style_sec">
+            .hide_sec_exp_render{
+                display: none;
+            }
+        </style>
+
+        <style id="style_courses">
+            .hide_courses_exp_render{
+                display: none;
+            }
+        </style>
+       
+    </head>
+    <body>
+        <div id="root" class="container-fluid">
+        </div>
+ <script type="text/babel">/**
+ * Created by zfan on 2017-03-19.
+ */
+/* This is a JS file, NOT babel */
+
+
+
+
+//course cols to display
+let COURSES_COLS = ["courses_dept", "courses_id", "courses_instructor", "courses_avg"];
+let ROOMS_COLS = ["rooms_name", "rooms_address", "rooms_seats", "rooms_furniture"];
+
+
+// This following function was taken and modified from:
+// http://stackoverflow.com/questions/5180382/convert-json-data-to-a-html-table
+// build data from a list of json objects
+// hide_class, if more than 15 rows, the rest rows will be attached a class
+function buildHtmlTable(arr, hide_class, table_id) {
+    let table = document.createElement('table'),
+        columns = addAllColumnHeaders(arr, table);
+    let tbody = document.createElement('tbody');
+    table.id = table_id;
+
+    let k = 0;
+    for (let i=0, maxi=arr.length; i < maxi; ++i) {
+        let tr = document.createElement('tr');
+        if(k > 15)tr.className = hide_class;
+        for (let j=0, maxj=columns.length; j < maxj ; ++j) {
+            let td = document.createElement('td');
+            let cellValue = arr[i][columns[j]];
+            td.appendChild(document.createTextNode(cellValue || ''));
+            tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+        k++;
+    }
+    table.appendChild(tbody);
+    return table;
+}
+
+function addAllColumnHeaders(arr, table) {
+    let thead = document.createElement('thead');
+    let columnSet = [],tr = document.createElement('tr');
+    let k = 0;
+    for (let i=0, l=arr.length; i < l; i++) {
+        for (let key in arr[i]) {
+            if (arr[i].hasOwnProperty(key) && columnSet.indexOf(key)===-1) {
+                columnSet.push(key);
+                let th =document.createElement('th');
+                th.appendChild(document.createTextNode(key));
+                tr.appendChild(th);
+            }
+        }
+    }
+    thead.appendChild(tr);
+    table.appendChild(thead);
+    return columnSet;
+}
+
+
+//err: a response from the server
+//just a placeholder for future query status notification
+function responseExplain(res){
+    res = res.response;
+    let prefix = "Error(" + res.status +"): ";
+
+    switch(res.status){
+        case 400:
+            return prefix + res.data.error;
+            break;
+        case 424:
+            return prefix + res.data.error;
+            break;
+        default:
+            return prefix + res.data.error;
+    }
+}
+
+
+
+
+
+
+//either inject a msg or a table into the target id
+//rows: array of objects, each object is one row
+//disable table when msg != null
+let injectTable = (rows, target_id, table_id, msg)=>{
+    let target = document.getElementById(target_id); let content;
+    if(msg == null){
+        content = buildHtmlTable(rows, "hide_" + target_id, table_id);
+        content.className = "table table-striped table-bordered table-hover table-responsive";
+    }else{
+        content = document.createTextNode(msg);
+    }
+    if(target.childNodes.length == 0){
+        target.appendChild(content);
+    }else{
+        target.replaceChild(content,target.childNodes[0]);
+    }
+};
+
+//create the where part using a list of keys with a logical operator
+//example:
+//createWhere(["courses_instructor", "courses_year"], ["jason", 2014], ["IS", "GT"], "AND")
+//placeholder
+let createWhere = (list_keys, list_vals, list_comp , op)=>{
+    if(list_vals.length != list_keys.length || list_vals.length != list_comp.length)return null;
+
+    let where = {}; where[op] = [];
+    for(let i = 0; i< list_keys.length ;i++){
+        let tmp = {};
+        let tmp2 = {}; tmp2[list_keys[i]] = list_vals[i];
+        tmp[list_comp[i]] = tmp2;
+        where[op].push(tmp);
+    }
+    return where;
+};
+
+//TODO: Robin
+//placeholder
+//if nothing to transform, return null;
+let createTransform = ()=>{
+    return null;
+};
+
+//TODO: Robin
+//placeholder
+let createOption = (cols, sortBy)=>{
+    return {
+        "COLUMNS" : cols,
+        "ORDER" : sortBy,
+        "FORM" : "TABLE"
+    };
+};
+
+//TODO: Robin
+//placeholder for generic routine to create query json
+let createQuery = (where, options, transf) =>{
+    let query = {};
+    query["WHERE"] = where;
+    query["OPTIONS"] = options;
+    if(transf != null){
+        query["TRANSFFFFFFFFMMMAS"] = transf;
+    }
+    return query;
+};
+
+//render the query response
+//send a query to server and inject table as a child of the target_id node
+//target_id: id of the target
+//table_id: the name of the table
+let renderQuery = (query, target_id, table_id)=>{
+        let request = axios.create({
+            baseURL: 'http://localhost:4321/',
+            timeout: 1000,
+            headers: {"Content-Type": "application/json"},
+            headers:{"access-control-allow-origin": "*"}
+        });
+
+        request.post('/query', query )
+        .then(function (response) {
+            if(response.data.result.length == 0){
+                injectTable(response.data.result, target_id, table_id, 'Oops~~ Nothing is found (200).');
+            }else{
+                injectTable(response.data.result, target_id, table_id, null);
+            }
+        }).catch(function (error) {
+            injectTable(null, target_id, table_id, responseExplain(error));
+        });
+};
+
+//this file is the main js
+//only deal with UI creating
+
+function expandCollapse(that, style_id){
+    if(that.state.hide_table){
+        let style = document.getElementById(style_id);
+        style.removeChild(style.childNodes[0]);
+        document.getElementById("expand_collapse").innerHTML = "Collapse";
+    }else{
+        let style = document.getElementById(style_id);
+        style.appendChild(that.props.showStyle);
+        document.getElementById("expand_collapse").innerHTML = "Show All";
+    }
+    that.state.hide_table = !that.state.hide_table;
+}
+
+let sectionRender = (that)=>{
+    return (
+        <div className="container">
+            <div className="page-header"><h1>{that.props.title}</h1></div>
+            <input type="radio" name="logic" ref="and_radio" value="AND"/> AND<br/>
+            <input type="radio" name="logic" ref="or_radio" value="OR"/> OR<br/>
+            Department <br/>
+            <input type="text" ref="input_depart" /> <br/>
+            Instructor <br/>
+            <input type="text" ref="input_instr" /> <br/>
+            Sorted By <br/>
+            <input type="checkbox" ref="sort_fail" name="section_sort" value="mostfailing"/>Most Failing<br/>
+            <input type="checkbox" ref="sort_pass" name="section_sort" value="mostpassing"/>Most Passing<br/>
+            <input type="checkbox" ref="sort_avg" name="section_sort" value="average"/>Average<br/>
+            <button className="btn btn-default" onClick={that.submit}>Submit</button>
+            <button className="btn btn-default" onClick={that.clear}>Clear</button>
+            <button className="btn btn-default" id="expand_collapse" onClick={that.expand}>Expand</button>
+            <div id={that.props.renderName}></div>
+        </div>
+    );
+};
+
+let sectionSubmit = (that)=>{
+    //extract data from UI
+    let depart = that.refs.input_depart.value.trim().toLowerCase();
+    let instr = that.refs.input_instr.value.trim().toLowerCase();
+
+    //TODO: Robin, sorting implement
+    let sort_fail = that.refs.sort_fail.checked;
+    let sort_pass = that.refs.sort_pass.checked;
+    let sort_avg = that.refs.sort_avg.checked;
+
+    //create where
+    let list_keys = []; let list_vals = []; let list_comp = [];
+    if(depart != ""){ list_keys.push("courses_dept"); list_vals.push(depart); list_comp.push("IS");}
+    if(instr != ""){ list_keys.push("courses_instructor"); list_vals.push(instr); list_comp.push("IS");}
+    let logic_op = (that.refs.and_radio.checked)?"AND":"OR";
+
+    //query object generator
+    //TODO: Robin
+    let sortBy = "courses_avg";
+    let where = createWhere(list_keys, list_vals, list_comp, logic_op);
+    let option = createOption(COURSES_COLS, sortBy);
+    let transf = createTransform();
+
+    let query = createQuery(where, option, transf);
+    renderQuery(query, that.props.renderName, that.props.comp_id);
+};
+
+let coursesRender = (that)=>{
+    return (
+        <div className="container">
+            <div className="page-header"><h1>{that.props.title}</h1></div>
+            <input type="radio" name="logic" ref="and_radio" value="AND"/> AND<br/>
+            <input type="radio" name="logic" ref="or_radio" value="OR"/> OR<br/>
+            Department <br/>
+            <input type="text" ref="input_depart" /> <br/>
+            Instructor <br/>
+            <input type="text" ref="input_instr" /> <br/>
+            Sorted By <br/>
+            <input type="checkbox" ref="sort_fail" name="section_sort" value="mostfailing"/>Most Failing<br/>
+            <input type="checkbox" ref="sort_pass" name="section_sort" value="mostpassing"/>Most Passing<br/>
+            <input type="checkbox" ref="sort_avg" name="section_sort" value="average"/>Average<br/>
+            <button className="btn btn-default" onClick={that.submit}>Submit</button>
+            <button className="btn btn-default" onClick={that.clear}>Clear</button>
+            <button className="btn btn-default" id="expand_collapse" onClick={that.expand}>Expand</button>
+            <div id={that.props.renderName}></div>
+        </div>
+    );
+};
+
+let coursesSubmit = (that)=>{
+    //extract data from UI
+    let depart = that.refs.input_depart.value.trim().toLowerCase();
+    let instr = that.refs.input_instr.value.trim().toLowerCase();
+
+    //TODO: Robin, sorting implement
+    let sort_fail = that.refs.sort_fail.checked;
+    let sort_pass = that.refs.sort_pass.checked;
+    let sort_avg = that.refs.sort_avg.checked;
+
+    //create where
+    let list_keys = []; let list_vals = []; let list_comp = [];
+    if(depart != ""){ list_keys.push("courses_dept"); list_vals.push(depart); list_comp.push("IS");}
+    if(instr != ""){ list_keys.push("courses_instructor"); list_vals.push(instr); list_comp.push("IS");}
+    let logic_op = (that.refs.and_radio.checked)?"AND":"OR";
+
+    //query object generator
+    //TODO: Robin
+    let sortBy = "courses_avg";
+    let where = createWhere(list_keys, list_vals, list_comp, logic_op);
+    let option = createOption(COURSES_COLS, sortBy);
+    let transf = createTransform();
+
+    let query = createQuery(where, option, transf);
+    renderQuery(query, that.props.renderName, that.props.comp_id);
+};
+
+
+let SectionExp = React.createClass({
+    getInitialState:function(){
+        //Preamble parameters
+        this.props.comp_id = "sec";
+        this.props.title = "Section Explorer";
+
+
+        //No need to init the following:
+        this.props.style_id = "style_" + this.props.comp_id;
+        this.props.showStyle = document.getElementById(this.props.style_id).childNodes[0];
+
+        //style tag id in html
+        this.props.renderName = this.props.comp_id + "_exp_render";
+        return {hide_table:true};
+    },
+    submit:function(){
+        sectionSubmit(this);
+    },
+    clear:function(){
+        this.refs.input_depart.value = "";
+        this.refs.input_instr.value = "";
+    },
+    expand:function(){ expandCollapse(this, this.props.style_id); },
+    render:function(){ return sectionRender(this); }
+});
+
+let CourseExp = React.createClass({
+    getInitialState:function(){
+        //Preamble parameters
+        this.props.comp_id = "courses";
+        this.props.title = "Course Explorer";
+
+
+        //No need to init the following:
+        this.props.style_id = "style_" + this.props.comp_id;
+        this.props.showStyle = document.getElementById(this.props.style_id).childNodes[0];
+
+        //style tag id in html
+        this.props.renderName = this.props.comp_id + "_exp_render";
+        return {hide_table:true};
+    },
+    submit:function(){
+        sectionSubmit(this);
+    },
+    clear:function(){
+        this.refs.input_depart.value = "";
+        this.refs.input_instr.value = "";
+    },
+    expand:function(){ expandCollapse(this, this.props.style_id); },
+    render:function(){ return sectionRender(this); }
+});
+
+
+ReactDOM.render(<div><SectionExp/><CourseExp/></div>, document.getElementById('root'));
+
+</script>
+    </body>
+</html>
